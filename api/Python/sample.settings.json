@@ -1,0 +1,31 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+      "FUNCTIONS_WORKER_RUNTIME": "python",
+      "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
+      "OpenAiApiKey": "", // OpenAI Key
+      "OpenAiKey": "", // Azure Open AI Key
+      "OpenAiEndPoint": "", // FQDN of Azure Open AI Service
+      "OpenAiVersion": "2023-07-01-preview",
+      "OpenAiEmbedding": "", // Deployment name of Ada-003
+      "FmpKey":"", // Financial Modeling Prep Key
+      "MaxTokens": 500, 
+      "Temperature": 0.3,
+      "CosmosEndpoint":"https://<>.documents.azure.com:443/",
+      "CosmosKey":"",
+      "CosmosDatabase":"aoai",
+      "CosmosContainer":"chatgpt",
+      "OpenAiChat": "", // GPT 3.5 deployment name
+      "OpenAiChat16k": "chat16k",
+      "SearchService":"", // Search Service 
+      "SearchKey":"", // Search Key
+      "BingUrl": "https://api.bing.microsoft.com/v7.0/search",
+      "BingKey": ""
+    },
+    "Host": {
+      "LocalHttpPort": 7072,
+      "CORS": "*",
+      "CORSCredentials": false
+    }
+  }
+  
