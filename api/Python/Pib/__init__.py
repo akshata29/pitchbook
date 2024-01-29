@@ -40,6 +40,13 @@ BingUrl = os.environ['BingUrl']
 BingKey = os.environ['BingKey']
 SearchService = os.environ['SearchService']
 SearchKey = os.environ['SearchKey']
+PibEarningsCallIndex = os.environ['PibEarningsCallIndex']
+PibPressReleaseIndex = os.environ['PibPressReleaseIndex']
+PibEarningsCallVectorIndex = os.environ['PibEarningsCallVectorIndex']
+PibSummariesIndex = os.environ['PibSummariesIndex']
+PibSecDataIndex = os.environ['PibSecDataIndex']
+PibSecDataVectorIndex = os.environ['PibSecDataVectorIndex']
+PibDataIndex = os.environ['PibDataIndex']
 
 def getProfileAndBio(pibIndexName, cik, step, symbol, temperature, llm, today):
     s1Data = []
@@ -234,7 +241,7 @@ def getEarningCalls(totalYears, historicalYear, symbol, today):
     # Get the earning call transcripts for the last 3 years and merge documents into the index.
     i = 0
     earningsData = []
-    earningIndexName = 'earningcalls'
+    earningIndexName = PibEarningsCallIndex
     try:
         # Create the index if it does not exist
         createEarningCallIndex(SearchService, SearchKey, earningIndexName)
@@ -294,7 +301,7 @@ def getPressReleases(today, symbol):
     # index repository before calling again, if it is persisted then we need to delete it first
     counter = 0
     pressReleasesList = []
-    pressReleaseIndexName = 'pressreleases'
+    pressReleaseIndexName = PibPressReleaseIndex
     # Create the index if it does not exist
     createPressReleaseIndex(SearchService, SearchKey, pressReleaseIndexName)
     print(f"Processing ticker : {symbol}")
@@ -538,7 +545,9 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
         #Let's just use the latest earnings call transcript to create the documents that we want to use it 
         #for generative AI tasks
         try:
-            earningIndexName = 'earningcalls'
+            earningIndexName = PibEarningsCallIndex
+            # Create the index if it does not exist
+            createEarningCallIndex(SearchService, SearchKey, earningIndexName)
             if reProcess == "Yes":
                 deleteEarningCallsSections(SearchService, SearchKey, earningIndexName, symbol)
                 time.sleep(2)
@@ -558,7 +567,7 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
             logging.info("Error in splitting the earning call transcript : ", e)
             return s2Data, content, latestCallDate
 
-        earningVectorIndexName = 'latestearningcalls'
+        earningVectorIndexName = PibEarningsCallVectorIndex
         createEarningCallVectorIndex(SearchService, SearchKey, earningVectorIndexName)
 
         if reProcess == "Yes":
@@ -617,7 +626,7 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
         logging.info("Completed latest earning call transcript Specific QA")
 
         # Store and Retrieve the Topics & Summary from the different Index
-        pibSummaryIndex = "pibsummaries"
+        pibSummaryIndex = PibSummariesIndex
         createPibSummaries(SearchService, SearchKey, pibSummaryIndex)
         if reProcess == "Yes":
             deleteLatestCallSummaries(SearchService, SearchKey, pibSummaryIndex, symbol, "earningcalls")
@@ -847,121 +856,13 @@ def generateSummaries(llm, docs):
     summary = summaryChain({"input_documents": docs}, return_only_outputs=True)
     return summary
 
-def processStep4Summaries(llm, secFilingList):
-
-    secFilingsPib = []
-
-    # For different section of extracted data, process summarization and generate common answers to questions
-    splitter = RecursiveCharacterTextSplitter(chunk_size=8000, chunk_overlap=0)
-
-    # Item 1 - Describes the business of the company
-    rawItemDocs = [Document(page_content=secFilingList[0]['item1'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 1 : " + str(len(itemDocs)))
-    item1Summary = generateSummaries(llm, itemDocs)
-    output1Answer = item1Summary['output_text']
-    secFilingsPib.append({
-                    "section": "item1",
-                    "summaryType": "Business Description",
-                    "summary": output1Answer
-            })
-    
-    logging.info("Item 1 Summary Completed")
-
-    # Item 1A - Risk Factors
-    rawItemDocs = [Document(page_content=secFilingList[0]['item1A'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 1A : " + str(len(itemDocs)))
-    item1Asummary = generateSummaries(llm,itemDocs)
-    output1AAnswer = item1Asummary['output_text']
-    secFilingsPib.append({
-                    "section": "item1A",
-                    "summaryType": "Risk Factors",
-                    "summary": output1AAnswer
-            })
-    
-    logging.info("Item 1A Summary Completed")
-    
-    # Item 3 - Legal Proceedings
-    rawItemDocs = [Document(page_content=secFilingList[0]['item3'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 3 : " + str(len(itemDocs)))
-    item1Asummary = generateSummaries(llm,itemDocs)
-    output1AAnswer = item1Asummary['output_text']
-    secFilingsPib.append({
-                    "section": "item3",
-                    "summaryType": "Legal Proceedings",
-                    "summary": output1AAnswer
-            })
-
-    logging.info("Item 3 Summary Completed")
-
-    # Item 6 - Consolidated Financial Data
-    rawItemDocs = [Document(page_content=secFilingList[0]['item6'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 6 : " + str(len(itemDocs)))
-    item6Summary = generateSummaries(llm, itemDocs)
-    output6Answer = item6Summary['output_text']
-    secFilingsPib.append({
-                    "section": "item6",
-                    "summaryType": "Financial Data",
-                    "summary": output6Answer
-            })
-    
-    logging.info("Item 6 Summary Completed")
-
-    # Item 7 - Management's Discussion and Analysis of Financial Condition and Results of Operations
-    rawItemDocs = [Document(page_content=secFilingList[0]['item7'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 7 : " + str(len(itemDocs)))
-    item7Summary = generateSummaries(llm, itemDocs)
-    output7Answer = item7Summary['output_text']
-    secFilingsPib.append({
-                    "section": "item7",
-                    "summaryType": "Management Discussion",
-                    "summary": output7Answer
-            })
-    
-    logging.info("Item 7 Summary Completed")
-
-    # Item 7a - Market risk disclosures
-    rawItemDocs = [Document(page_content=secFilingList[0]['item7A'])]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 7A : " + str(len(itemDocs)))
-    item7Asummary = generateSummaries(llm, itemDocs)
-    output7AAnswer = item7Asummary['output_text']
-    secFilingsPib.append({
-                    "section": "item7A",
-                    "summaryType": "Risk Disclosures",
-                    "summary": output7AAnswer
-            })
-    
-    logging.info("Item 7A Summary Completed")
-
-    # Item 9 - Disagreements with accountants and changes in accounting
-    section9 = secFilingList[0]['item9'] + "\n " + secFilingList[0]['item9A'] + "\n " + secFilingList[0]['item9B']
-    rawItemDocs = [Document(page_content=section9)]
-    itemDocs = splitter.split_documents(rawItemDocs)
-    logging.info("Number of documents chunks generated from Item 9 : " + str(len(itemDocs)))
-    item9Summary = generateSummaries(llm, itemDocs)
-    output9Answer = item9Summary['output_text']
-    secFilingsPib.append({
-                    "section": "item9",
-                    "summaryType": "Accounting Disclosures",
-                    "summary": output9Answer
-            })
-    
-    logging.info("Item 9 Summary Completed")
-
-    return secFilingsPib
-
 def processStep4(symbol, cik, filingType, historicalYear, currentYear, embeddingModelType, llm, pibIndexName, 
                  step, today, reProcess, selectedTopics):
 
     s4Data = []
     ticker = symbol
 
-    secFilingIndexName = 'secdata'
+    secFilingIndexName = PibSecDataIndex
     secFilingsListResp = secFilings(apikey=FmpKey, symbol=ticker, filing_type=filingType)
 
     if len(secFilingsListResp) > 0:
@@ -1118,7 +1019,7 @@ def processStep4(symbol, cik, filingType, historicalYear, currentYear, embedding
                 })
 
                 # Check if we have already processed the latest filing, if yes then skip
-                secFilingsVectorIndexName = 'latestsecfilings'
+                secFilingsVectorIndexName = PibSecDataVectorIndex
                 createSecFilingsVectorIndex(SearchService, SearchKey, secFilingsVectorIndexName)
                 r = findLatestSecFilings(SearchService, SearchKey, secFilingsVectorIndexName, cik, symbol, latestFilingDate, filingType, returnFields=['id', 'cik', 'symbol', 'latestFilingDate', 'filingType',
                                                                                                                                 'content'])
@@ -1145,7 +1046,7 @@ def processStep4(symbol, cik, filingType, historicalYear, currentYear, embedding
                 logging.info('Process summaries for ' + symbol)
 
                 secFilingsQa = []
-                pibSummaryIndex = "pibsummaries"
+                pibSummaryIndex = PibSummariesIndex
                 createPibSummaries(SearchService, SearchKey, pibSummaryIndex)
                 if reProcess == "Yes":
                     deleteLatestCallSummaries(SearchService, SearchKey, pibSummaryIndex, symbol, "secfilings")
@@ -1169,16 +1070,6 @@ def processStep4(symbol, cik, filingType, historicalYear, currentYear, embedding
                             'pibData' : str(secFilingsQa)
                     })
 
-                #secFilingsPib = processStep4Summaries(llm, secFilingList)
-                # s4Data.append({
-                #             'id' : str(uuid.uuid4()),
-                #             'symbol': symbol,
-                #             'cik': cik,
-                #             'step': step,
-                #             'description': 'SEC Filings',
-                #             'insertedDate': today.strftime("%Y-%m-%d"),
-                #             'pibData' : str(secFilingsPib)
-                #     })
                 mergeDocs(SearchService, SearchKey, pibIndexName, s4Data)
         else:
             logging.info("Found existing Pib Data :" + str(r.get_count()))
@@ -1385,7 +1276,7 @@ def PibSteps(step, symbol, embeddingModelType, reProcess, overrides):
         totalYears = currentYear - historicalYear
         temperature = 0.3
         tokenLength = 1000
-        pibIndexName = 'pibdata'
+        pibIndexName = PibDataIndex
         filingType = "10-K"
         os.environ['BING_SEARCH_URL'] = BingUrl
         os.environ['BING_SUBSCRIPTION_KEY'] = BingKey

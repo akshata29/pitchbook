@@ -4,6 +4,14 @@ This sample demonstrates building a pitch book from public, private and paid dat
 
 ## Updates
 
+* 1/28/2024 - Additional Details on all Cognitive search Index used
+  * pibec - Index to store the earning calls raw content
+  * pibpr - Index to store the Press Releases raw content (PR Date, Title, Content)
+  * pibecvector - Index to store the earning calls vector content (Only latest earning call transcript data)
+  * pibsummaries - Index to store the summaries of Pre-defined or Custom Topics for earning calls and SEC Filings
+  * pibsec - Index to store the SEC Filings raw content (Itemized by sections, content and additional metadata)
+  * pibsecvector - Index to store the sec data vector content (Only latest sec filing data - Not the itemized vector content, but the entire document vector.  For now missing additional metadata too)
+  * pibdata - Index to store the "Cached" data from the above indexes.  This is the index that is used for the search results
 * 1/27/2024 - Initial Version
 
 ## Architecture

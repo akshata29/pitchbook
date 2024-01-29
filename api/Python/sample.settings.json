@@ -20,7 +20,15 @@
       "SearchService":"", // Search Service 
       "SearchKey":"", // Search Key
       "BingUrl": "https://api.bing.microsoft.com/v7.0/search",
-      "BingKey": ""
+      "BingKey": "",
+      "SecDocContainer": "pibsecdocs",
+      "PibEarningsCallIndex" : "pibec",
+      "PibPressReleaseIndex" : "pibpr",
+      "PibEarningsCallVectorIndex" : "pibecvector",
+      "PibSummariesIndex": "pibsummaries",
+      "PibSecDataIndex": "pibsec",
+      "PibSecDataVectorIndex": "pibsecvector",
+      "PibDataIndex" : "pibdata"
     },
     "Host": {
       "LocalHttpPort": 7072,
