@@ -17,20 +17,21 @@ export default defineConfig({
         sourcemap: true
     },
     server: {
+        port: 5173,
         proxy: {
-            "/getPib": "http://127.0.0.1:5001",
-            "/pibChat": "http://127.0.0.1:5001",
-            "/deleteIndexSession": "http://127.0.0.1:5001",
-            "/getAllDocumentRuns": "http://127.0.0.1:5001",
-            "/getAllIndexSessions": "http://127.0.0.1:5001",
-            "/getAllSessions": "http://127.0.0.1:5001",
-            "/getCashFlow": "http://127.0.0.1:5001",
-            "/getIncomeStatement": "http://127.0.0.1:5001",
-            "/getIndexSession": "http://127.0.0.1:5001",
-            "/getIndexSessionDetail": "http://127.0.0.1:5001",
-            "/getSocialSentiment": "http://127.0.0.1:5001",
-            "/getNews": "http://127.0.0.1:5001",
-            "/renameIndexSession": "http://127.0.0.1:5001",
+            "/getPib": "http://127.0.0.1:5003",
+            "/pibChat": "http://127.0.0.1:5003",
+            "/deleteIndexSession": "http://127.0.0.1:5003",
+            "/getAllDocumentRuns": "http://127.0.0.1:5003",
+            "/getAllIndexSessions": "http://127.0.0.1:5003",
+            "/getAllSessions": "http://127.0.0.1:5003",
+            "/getCashFlow": "http://127.0.0.1:5003",
+            "/getIncomeStatement": "http://127.0.0.1:5003",
+            "/getIndexSession": "http://127.0.0.1:5003",
+            "/getIndexSessionDetail": "http://127.0.0.1:5003",
+            "/getSocialSentiment": "http://127.0.0.1:5003",
+            "/getNews": "http://127.0.0.1:5003",
+            "/renameIndexSession": "http://127.0.0.1:5003",
         }
         // proxy: {
         //     "/ask": {

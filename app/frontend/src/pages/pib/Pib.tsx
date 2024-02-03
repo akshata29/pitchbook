@@ -12,9 +12,7 @@ import { Label } from '@fluentui/react/lib/Label';
 import { Pivot, PivotItem } from '@fluentui/react';
 import { IStackTokens, IStackItemStyles } from '@fluentui/react/lib/Stack';
 import { DefaultPalette } from '@fluentui/react/lib/Styling';
-import { Amex } from "../../components/Symbols/Amex";
-import { Nasdaq } from "../../components/Symbols/Nasdaq";
-import { Nyse } from "../../components/Symbols/Nyse";
+import { Stocks } from "../../components/Symbols/Stocks";
 import { PrimaryButton } from "@fluentui/react";
 import { ClearChatButton } from "../../components/ClearChatButton";
 import { ChatSession } from "../../api/models";
@@ -43,11 +41,17 @@ const Pib = () => {
     const [selectedSecSummaryTopicItem, setSelectedSecSummaryTopicItem] = useState<string[]>([]);
     const [customSecTopic, setCustomSecTopic] = useState<string>("");
 
-    const [symbol, setSymbol] = useState<string>('AAPL');
+    const [selectedSector, setSelectedSector] = useState<IDropdownOption>();
+    const [sectors, setSectors] = useState<{key: string, text: string;}[]>([]);
+    const [industries, setIndustries] = useState<{key: string, text: string;}[]>([]);
+    const [selectedIndustry, setSelectedIndustry] = useState<IDropdownOption>();
+    const [companies, setCompanies] = useState<{key: string, text: string;}[]>([]);
+    const [selectedCompany, setSelectedCompany] = useState<string[]>([]);
+    const [missingSymbol, setMissingSymbol] = useState<boolean>(true);
+
+    const [symbol, setSymbol] = useState<string>('');
     const [selectedExchange, setSelectedExchange] = useState<IDropdownOption>();
-    const [selectedCompany, setSelectedCompany] = useState<IDropdownOption>();
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
-    const [missingSymbol, setMissingSymbol] = useState<boolean>(false);
     const [biography, setBiography] = useState<any>();
     const [companyName, setCompanyName] = useState<string>();
     const [cik, setCik] = useState<string>();
@@ -263,15 +267,6 @@ const Pib = () => {
             text: 'SEC Filings'
         }
     ]
-    const amexTickers =  Amex.Tickers.map((ticker) => {
-        return {key: ticker.key, text: ticker.text}
-    })
-    const nasdaqTickers = Nasdaq.Tickers.map((ticker) => {
-        return {key: ticker.key, text: ticker.text}
-    })
-    const nyseTickers = Nyse.Tickers.map((ticker) => {
-        return {key: ticker.key, text: ticker.text}
-    })
     function stockNewsRenderColumn(item?: any, index?: number, column?: IColumn) {
         const fieldContent = item[column?.fieldName as keyof any] as string;
       
@@ -469,33 +464,64 @@ const Pib = () => {
          ),
          [selection, sessionListColumn, sessionList]
     );
-    const onExchangeChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
-        setSelectedExchange(item);
-        if (item?.key === "AMEX") {
-            setSelectedCompany(amexTickers[0]);
-        } else if (item?.key === "NASDAQ") {
-            setSelectedCompany(nasdaqTickers[0])
-        } else if (item?.key === "NYSE") {
-            setSelectedCompany(nyseTickers[0])
-        }
+
+    const onSectorChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        setSelectedSector(item);
+        setSymbol('');
+        setMissingSymbol(true)
+        const filteredIndustry = Stocks.Tickers.filter(({Sector})=>Sector === String(item?.key))
+
+        const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
+        const industries = uniqIndustries.map((industry) => {
+            return {key: industry, text: industry}
+        })
+
+        setIndustries(industries)
+        setSelectedIndustry(industries[0])
+
+        const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
+        String(item?.key) === Sector)
+        const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]        
+        const companies = uniqCompanies.map((company) => {
+            return {key: company, text: company}
+        })
+        setCompanies(companies)
     }
+    const onIndustryChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        setSelectedIndustry(item);
+        setSymbol('');
+        setMissingSymbol(true)
+        const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(item?.key) && 
+        String(selectedSector?.key) === Sector)
+
+        const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]
+        const companies = uniqCompanies.map((company) => {
+            return {key: company, text: company}
+        })
+        setCompanies(companies)
+        //setSelectedCompany([companies[0].key])
+    }
+    // const onCompanyChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+    //     if (item) {
+    //         setSelectedCompany(
+    //             item.selected ? [...selectedCompany, item.key as string] : selectedCompany.filter(key => key !== item.key),
+    //         );
+    //     }
+    // }
     const onDocChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedDoc(item);
         clearChat();
         getCosmosSession(String(item?.key), String(symbol))
     }
-    const onCompanyChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+    const onSymbolChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption) => {
         setSymbol(String(item?.key));
-    };
-    const onSymbolChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        setSymbol(newValue || "");
-        if (newValue == '') {
+        if (item?.key == '') {
           setMissingSymbol(true)
         }
         else {
             setMissingSymbol(false)
         }
-        getCosmosSession(String(selectedDoc?.key), String(newValue))
+        getCosmosSession(String(selectedDoc?.key), String(item?.key))
         clearChat();
     };
     const getUserInfoList = async () => {
@@ -648,6 +674,11 @@ const Pib = () => {
     }
     const processPib = async (step: string, reProcess: string) => {
         try {
+            if (symbol == '' || symbol == undefined)
+            {
+                setMissingSymbol(true)
+                return
+            }
             let request: AskRequest
             if (step == '2')
             {
@@ -975,7 +1006,6 @@ const Pib = () => {
         setSelectedItems([])
         setSessionName('');
     };
-
     const getCosmosSession = async (indexNs : string, indexType: string) => {
         try {
             await getAllIndexSessions(indexNs, indexType, 'chat', 'Session')
@@ -993,11 +1023,7 @@ const Pib = () => {
                         });    
                     }
                 }
-                if (indexNs == "chatgpt") {
-                    setSessionListGpt(sessionLists)
-                } else {
-                    setSessionList(sessionLists)
-                }
+                setSessionList(sessionLists)
             })
         } catch (e) {
             setError(e);
@@ -1017,7 +1043,6 @@ const Pib = () => {
         })
 
     };
-    
     const renameSession = async () => {
         if (oldSessionName === 'No Sessions found' || oldSessionName === undefined || sessionName === "" || sessionName === undefined
         || oldSessionName === "" || sessionName === 'No Sessions found') {
@@ -1031,7 +1056,6 @@ const Pib = () => {
             })
         }
     };
-    
     const onSessionNameChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string): void => {
         const oldSessionName = String(selectedItems[0]?.['Session Name'])
         if (newValue === undefined || newValue === "") {
@@ -1039,7 +1063,6 @@ const Pib = () => {
         }
         setSessionName(newValue || oldSessionName);
     };
-
     const onSummarizationTopicChanged = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         if (item) {
             setSelectedSummaryTopicItem(
@@ -1047,11 +1070,9 @@ const Pib = () => {
             );
         }
     };
-
     const onCustomTopicChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         setCustomTopic(newValue || "");
     };
-    
     const onSecSummarizationTopicChanged = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         if (item) {
             setSelectedSecSummaryTopicItem(
@@ -1059,11 +1080,9 @@ const Pib = () => {
             );
         }
     };
-
     const onCustomSecTopicChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         setCustomSecTopic(newValue || "");
     };
-    
     const onSessionClicked = async (sessionFromList: any) => {
         //makeApiRequest(sessionFromList.name);
         const sessionName = sessionFromList["Session Name"]
@@ -1112,7 +1131,6 @@ const Pib = () => {
             }
         }
     }
-    
     const onShowCitation = (citation: string, index: number) => {
         if (citation.indexOf('http') > -1 || citation.indexOf('https') > -1) {
             window.open(citation.replace('/content/', '').trim(), '_blank');
@@ -1208,10 +1226,8 @@ const Pib = () => {
             setIsLoading(false);
         }
     };
-    
     const startOrStopSynthesis = async (answerType:string, url: string | null, index: number) => {
     };
-    
     const onTabChange = (item?: PivotItem | undefined, ev?: React.MouseEvent<HTMLElement, MouseEvent> | undefined): void => {
         if (item?.props.headerText === "Chat Pib") {
             clearChat()
@@ -1229,9 +1245,30 @@ const Pib = () => {
         } else
             setShowAuthMessage(false)
 
-        
-        setSelectedExchange(exchangeOptions[0])
-        setSelectedCompany(amexTickers[0]);
+        const uniqSector = [...new Set(Stocks.Tickers.map(({Sector})=>Sector))]
+        const sectors = uniqSector.map((sector) => {
+            return {key: sector, text: sector}
+        })
+        setSymbol('');
+        setMissingSymbol(true)
+
+        setSectors(sectors)
+        setSelectedSector(sectors[0])
+        const filteredIndustry = Stocks.Tickers.filter(({Sector})=>Sector === String(sectors[0].key))
+        const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
+        const industries = uniqIndustries.map((industry) => {
+            return {key: industry, text: industry}
+        })
+        setIndustries(industries)
+        setSelectedIndustry(industries[0])
+        const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
+        String(sectors[0]?.key) === Sector)
+        const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]
+        const companies = uniqCompanies.map((company) => {
+            return {key: company, text: company}
+        })
+        setCompanies(companies)
+    
         setSelectedDoc(docOptions[0]);
         setSelectedSummaryTopicItem(['Financial Results', 'Business Highlights', 'Future Outlook', 'Business Risks', 'Management Positive Sentiment', 'Management Negative Sentiment'])
         setSelectedSecSummaryTopicItem(['item1', 'item1A', 'item3', 'item6', 'item7', 'item7A', 'item9', 'Management Positive Sentiment', 'Management Negative Sentiment'])
@@ -1328,130 +1365,96 @@ const Pib = () => {
                                         </div>
                                     </Stack.Item>
                                     <Stack.Item grow={2} styles={stackItemStyles}>
-                                        <Label>Exchange :</Label>
+                                    <Label>Sector :</Label>
                                         &nbsp;
                                         <Dropdown
-                                            selectedKey={selectedExchange?.key}
-                                            onChange={onExchangeChange}
-                                            placeholder="Select Exchange"
-                                            options={exchangeOptions}
+                                            selectedKey={selectedSector?.key}
+                                            onChange={onSectorChange}
+                                            placeholder="Select Sector"
+                                            options={sectors}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />&nbsp;
+                                        <Label>Industry :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedIndustry?.key}
+                                            onChange={onIndustryChange}
+                                            placeholder="Select Industry"
+                                            options={industries}
                                             disabled={false}
                                             styles={dropdownShortStyles}
                                             multiSelect={false}
                                         />
-                                        {/* &nbsp;  
-                                        <Label>Company :</Label>
                                         &nbsp;
-                                        <Dropdown
-                                            selectedKey={selectedCompany?.key}
-                                            onChange={onCompanyChange}
-                                            placeholder="Select Company"
-                                            options={selectedExchange?.key == 'AMEX' ? amexTickers : selectedExchange?.key == 'NADSAQ' ? nasdaqTickers : nyseTickers}
-                                            disabled={false}
-                                            styles={dropdownStyles}
-                                            multiSelect={false}
-                                        /> */}
-                                        &nbsp;
-                                        {/* <Downshift
-                                            onStateChange={({ inputValue }) => {
-                                                console.log(inputValue)
-                                            }}
-                                            selectedItem={selectedCompany}
-                                            onChange={selection => alert(`You selected ${selection}`)}
-                                            >
-                                            {({
-                                                getInputProps,
-                                                getItemProps,
-                                                getLabelProps,
-                                                isOpen,
-                                                inputValue,
-                                                highlightedIndex,
-                                                selectedItem
-                                            }) => (
-                                                <div>
-                                                <label {...getLabelProps()}>Select a Company</label>
-                                                <input {...getInputProps()} />
-                                                {isOpen ? (
-                                                    <div>
-                                                    {nasdaqTickers
-                                                        .filter(i => !inputValue || i.text.includes(inputValue))
-                                                        .map((item, index) => (
-                                                        <div
-                                                            {...getItemProps({
-                                                            key: item.text,
-                                                            index,
-                                                            item,
-                                                            style: {
-                                                                backgroundColor:
-                                                                highlightedIndex === index
-                                                                    ? "lightgray"
-                                                                    : "white",
-                                                                fontWeight:
-                                                                selectedItem === item ? "bold" : "normal"
-                                                            }
-                                                            })}
-                                                        >
-                                                            {item.text}
-                                                        </div>
-                                                        ))}
-                                                    </div>
-                                                ) : null}
-                                                </div>
-                                            )}
-                                        </Downshift> */}
-
                                         <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} required={true} 
-                                            errorMessage={!missingSymbol ? '' : "Symbol is required for PIB Functionality"}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                            //errorMessage={!missingSymbol ? '' : "Symbol is required for PIB Functionality"}/>
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Get Profile & Bio" onClick={() => processPib("1", "No")} disabled={isLoading} />&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("1", "Yes")} disabled={isLoading} />
+                                        <PrimaryButton text="Get Profile & Bio" onClick={() => processPib("1", "No")} disabled={isLoading || missingSymbol} />&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("1", "Yes")} disabled={isLoading || missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
                                             <Spinner label="Processing..." ariaLive="assertive" labelPosition="right" />
                                         </Stack.Item>
                                         ) : (
-                                            <div>
-                                                <br/>
+                                            missingSymbol ? 
+                                            (
                                                 <Stack.Item grow={2} styles={stackItemStyles}>
-                                                    <b>Company Name : </b> {companyName}
-                                                    &nbsp;
-                                                    <b>CIK : </b> {cik}
+                                                     <b>Symbol is required for PIB functionality</b>
                                                 </Stack.Item>
-                                                <Stack.Item grow={2} styles={stackItemStyles}>
-                                                    <b>Exchange : </b> {exchange}
-                                                    &nbsp;
-                                                    <b>Industry : </b> {industry}
-                                                    &nbsp;
-                                                    <b>Sector : </b> {sector}
-                                                </Stack.Item>
-                                                <Stack.Item grow={2} styles={stackItemStyles}>
-                                                    <b>Address : </b> {address}
-                                                    &nbsp;
-                                                    <b>Website : </b> {website}
-                                                </Stack.Item>
-                                                <Stack.Item grow={2} styles={stackItemStyles}>
-                                                    {description}
-                                                </Stack.Item>
-                                                <br/>
-                                                <Stack enableScopedSelectors styles={stackItemCenterStyles} tokens={innerStackTokens}>
-                                                    <Stack.Item grow={2} styles={stackItemCenterStyles}>
-                                                        <DetailsList
-                                                            compact={true}
-                                                            items={biography || []}
-                                                            columns={biographyColumns}
-                                                            selectionMode={SelectionMode.none}
-                                                            getKey={(item: any) => item.key}
-                                                            selectionPreservedOnEmptyClick={true}
-                                                            layoutMode={DetailsListLayoutMode.justified}
-                                                            ariaLabelForSelectionColumn="Toggle selection"
-                                                            checkButtonAriaLabel="select row"
-                                                            />
+                                            ) : (
+                                                <div>
+                                                    <br/>
+                                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                                        <b>Company Name : </b> {companyName}
+                                                        &nbsp;
+                                                        <b>CIK : </b> {cik}
                                                     </Stack.Item>
-                                                </Stack>
-                                        </div>
+                                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                                        <b>Exchange : </b> {exchange}
+                                                        &nbsp;
+                                                        <b>Industry : </b> {industry}
+                                                        &nbsp;
+                                                        <b>Sector : </b> {sector}
+                                                    </Stack.Item>
+                                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                                        <b>Address : </b> {address}
+                                                        &nbsp;
+                                                        <b>Website : </b> {website}
+                                                    </Stack.Item>
+                                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                                        {description}
+                                                    </Stack.Item>
+                                                    <br/>
+                                                    <Stack enableScopedSelectors styles={stackItemCenterStyles} tokens={innerStackTokens}>
+                                                        <Stack.Item grow={2} styles={stackItemCenterStyles}>
+                                                            <DetailsList
+                                                                compact={true}
+                                                                items={biography || []}
+                                                                columns={biographyColumns}
+                                                                selectionMode={SelectionMode.none}
+                                                                getKey={(item: any) => item.key}
+                                                                selectionPreservedOnEmptyClick={true}
+                                                                layoutMode={DetailsListLayoutMode.justified}
+                                                                ariaLabelForSelectionColumn="Toggle selection"
+                                                                checkButtonAriaLabel="select row"
+                                                                />
+                                                        </Stack.Item>
+                                                    </Stack>
+                                            </div>
+                                            )
                                         )
                                     }
                                 </Stack>
@@ -1512,7 +1515,16 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                            //errorMessage={!missingSymbol ? '' : "Symbol is required for PIB Functionality"}/>
+                                        />
                                         &nbsp;
                                         <Label>Summarization Topics</Label>
                                         &nbsp;
@@ -1531,8 +1543,8 @@ const Pib = () => {
                                         &nbsp;
                                         <TextField value={customTopic} onChange={onCustomTopicChange} />
                                         &nbsp;
-                                        <PrimaryButton text="Process Earning Calls" onClick={() => processPib("2", "No")} disabled={isLoading}/>&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("2", "Yes")} disabled={isLoading} />
+                                        <PrimaryButton text="Process Earning Calls" onClick={() => processPib("2", "No")} disabled={isLoading || missingSymbol}/>&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("2", "Yes")} disabled={isLoading || missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1601,10 +1613,18 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Fetch Press Releases" onClick={() => processPib("3", "No")} disabled={isLoading} />&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("3", "Yes")} disabled={isLoading} />
+                                        <PrimaryButton text="Fetch Press Releases" onClick={() => processPib("3", "No")} disabled={isLoading || !missingSymbol} />&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("3", "Yes")} disabled={isLoading || !missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1654,7 +1674,15 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
                                         <Label>Summarization Topics</Label>
                                         &nbsp;
@@ -1673,8 +1701,8 @@ const Pib = () => {
                                         &nbsp;
                                         <TextField value={customSecTopic} onChange={onCustomSecTopicChange} />
                                         &nbsp;
-                                        <PrimaryButton text="Crawl SEC Data" onClick={() => processPib("4", "No")} disabled={isLoading}/>&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("4", "Yes")} disabled={isLoading} />
+                                        <PrimaryButton text="Crawl SEC Data" onClick={() => processPib("4", "No")} disabled={isLoading || !missingSymbol}/>&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("4", "Yes")} disabled={isLoading || !missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1723,10 +1751,18 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Recommendations" onClick={() => processPib("5", "No")} disabled={isLoading}/>&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("5", "Yes")} disabled={isLoading} />
+                                        <PrimaryButton text="Recommendations" onClick={() => processPib("5", "No")} disabled={isLoading || !missingSymbol}/>&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("5", "Yes")} disabled={isLoading || !missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1775,9 +1811,17 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Get News & Sentiment" onClick={() => processPib("6", "No")} />
+                                        <PrimaryButton text="Get News & Sentiment" onClick={() => processPib("6", "No")} disabled={isLoading || !missingSymbol}/>
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1851,9 +1895,17 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Show Financial Data" onClick={() => processPib("7", "No")} />
+                                        <PrimaryButton text="Show Financial Data" onClick={() => processPib("7", "No")} disabled={isLoading || !missingSymbol}/>
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1905,9 +1957,17 @@ const Pib = () => {
                                         &nbsp;
                                          <Label>Symbol :</Label>
                                         &nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         &nbsp;
-                                        <PrimaryButton text="Generate Presentation" onClick={() => generatePresentation()} />
+                                        <PrimaryButton text="Generate Presentation" onClick={() => generatePresentation()} disabled={isLoading || !missingSymbol}/>
                                     </Stack.Item>
                                 </Stack>
                             </Stack>
@@ -1915,7 +1975,7 @@ const Pib = () => {
                     <PivotItem
                         headerText="Chat Pib"
                         headerButtonProps={{
-                        'data-order': 10,
+                        'data-order': 9,
                         }}
                     >
                     <div className={styles.root}>
@@ -1923,7 +1983,15 @@ const Pib = () => {
                                 <Stack enableScopedSelectors styles={stackItemStyles} tokens={innerStackTokens}>
                                     <Stack.Item grow={2} styles={stackItemStyles}>
                                         <Label>Symbol :</Label>&nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        <Dropdown
+                                            selectedKey={symbol}
+                                            onChange={onSymbolChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={true}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
                                         <Label>Talk to Document :</Label>&nbsp;
                                         <Dropdown
                                             selectedKey={selectedDoc ? selectedDoc.key : undefined}

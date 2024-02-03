@@ -6,7 +6,7 @@
       "OpenAiApiKey": "", // OpenAI Key
       "OpenAiKey": "", // Azure Open AI Key
       "OpenAiEndPoint": "", // FQDN of Azure Open AI Service
-      "OpenAiVersion": "2023-07-01-preview",
+      "OpenAiVersion": "2023-12-01-preview",
       "OpenAiEmbedding": "", // Deployment name of Ada-003
       "FmpKey":"", // Financial Modeling Prep Key
       "MaxTokens": 500, 

@@ -28,7 +28,6 @@ from Sec.secDocPersist import PersistSecDocs
 from langchain.embeddings.azure_openai import AzureOpenAIEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
 
-
 OpenAiEndPoint = os.environ['OpenAiEndPoint']
 OpenAiChat = os.environ['OpenAiChat']
 OpenAiChat16k = os.environ['OpenAiChat16k']
@@ -530,6 +529,7 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
     content = ''
     latestCallDate = ''
     s2Data = []
+    earningIndexName = PibEarningsCallIndex
 
     if r.get_count() == 0 or reProcess == "Yes":
         if reProcess == "Yes":
@@ -545,7 +545,6 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
         #Let's just use the latest earnings call transcript to create the documents that we want to use it 
         #for generative AI tasks
         try:
-            earningIndexName = PibEarningsCallIndex
             # Create the index if it does not exist
             createEarningCallIndex(SearchService, SearchKey, earningIndexName)
             if reProcess == "Yes":
@@ -738,7 +737,7 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
                     'pibData' : s['pibData']
                 })
         
-        r = findEarningCallsBySymbol(SearchService, SearchKey, "earningcalls", symbol, returnFields=['id', 'content', 'callDate'])
+        r = findEarningCallsBySymbol(SearchService, SearchKey, earningIndexName, symbol, returnFields=['id', 'content', 'callDate'])
         if r.get_count() > 0:
             logging.info("Total earning calls found: " + str(r.get_count()))
             existingEarningCalls = []
@@ -1350,6 +1349,7 @@ def PibSteps(step, symbol, embeddingModelType, reProcess, overrides):
       return {"data_points": "", "answer": "Exception during finding answers - Error : " + str(e), "thoughts": "", "sources": "", "nextQuestions": "", "error":  str(e)}
 
     #return answer
+
 
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     logging.info(f'{context.function_name} HTTP trigger function processed a request.')

@@ -4,7 +4,6 @@ import uuid
 import azure.functions as func
 import openai
 import os
-import pinecone
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.docstore.document import Document
 from langchain.chat_models import AzureChatOpenAI, ChatOpenAI

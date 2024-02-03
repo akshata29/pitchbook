@@ -1,7 +1,6 @@
 import logging, json, os
 import azure.functions as func
 import tempfile
-import pinecone
 import numpy as np
 from typing import Any, Callable, Dict, List, Optional
 import itertools
