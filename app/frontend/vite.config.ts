@@ -12,7 +12,7 @@ export default defineConfig({
        // wrapperComponentPath: './src/pages/help/help',
       })],
     build: {
-        outDir: "../backend/static",
+        outDir: "../backend",
         emptyOutDir: true,
         sourcemap: true
     },
