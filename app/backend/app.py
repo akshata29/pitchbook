@@ -9,7 +9,12 @@ from azure.cosmos import CosmosClient, PartitionKey
 
 load_dotenv()
 app = Flask(__name__)
-  
+
+@app.route("/", defaults={"path": "index.html"})
+@app.route("/<path:path>")
+def static_file(path):
+    return app.send_static_file(path)
+
 @app.route("/getPib", methods=["POST"])
 def getPib():
     step=request.json["step"]
