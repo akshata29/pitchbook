@@ -13,7 +13,7 @@ export default defineConfig({
       })],
     build: {
         outDir: "../backend",
-        emptyOutDir: true,
+        emptyOutDir: false,
         sourcemap: true
     },
     server: {
