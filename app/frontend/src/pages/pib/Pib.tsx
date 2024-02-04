@@ -46,11 +46,9 @@ const Pib = () => {
     const [industries, setIndustries] = useState<{key: string, text: string;}[]>([]);
     const [selectedIndustry, setSelectedIndustry] = useState<IDropdownOption>();
     const [companies, setCompanies] = useState<{key: string, text: string;}[]>([]);
-    const [selectedCompany, setSelectedCompany] = useState<string[]>([]);
     const [missingSymbol, setMissingSymbol] = useState<boolean>(true);
 
     const [symbol, setSymbol] = useState<string>('');
-    const [selectedExchange, setSelectedExchange] = useState<IDropdownOption>();
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
     const [biography, setBiography] = useState<any>();
     const [companyName, setCompanyName] = useState<string>();
@@ -88,7 +86,6 @@ const Pib = () => {
     const [cashFlow, setCashFlow] = useState<any>();
 
     const lineMargins = { left: 35, top: 20, bottom: 35, right: 20 };
-
     const summaryTopicOptions = [
         {
           key: 'Financial Results',
@@ -127,7 +124,6 @@ const Pib = () => {
             text: 'Intellectual Property'
         }
     ]
-
     const secSummaryTopicOptions = [
         {
           key: 'Financial Results',
@@ -240,21 +236,6 @@ const Pib = () => {
         {
             key: 'item15',
             text: 'item15'
-        }
-    ]
-
-    const exchangeOptions = [
-        {
-            key: 'AMEX',
-            text: 'AMEX'
-        },
-        {
-            key: 'NASDAQ',
-            text: 'NASDAQ'
-        },
-        {
-            key: 'NYSE',
-            text: 'NYSE'
         }
     ]
     const docOptions = [
@@ -417,7 +398,6 @@ const Pib = () => {
             justifyContent: 'left',
         },
     };
-   
     const sessionListColumn = [
         {
           key: 'Session Name',
@@ -464,7 +444,6 @@ const Pib = () => {
          ),
          [selection, sessionListColumn, sessionList]
     );
-
     const onSectorChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedSector(item);
         setSymbol('');
@@ -501,13 +480,6 @@ const Pib = () => {
         setCompanies(companies)
         //setSelectedCompany([companies[0].key])
     }
-    // const onCompanyChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
-    //     if (item) {
-    //         setSelectedCompany(
-    //             item.selected ? [...selectedCompany, item.key as string] : selectedCompany.filter(key => key !== item.key),
-    //         );
-    //     }
-    // }
     const onDocChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedDoc(item);
         clearChat();
@@ -679,6 +651,7 @@ const Pib = () => {
                 setMissingSymbol(true)
                 return
             }
+            setMissingSymbol(false)
             let request: AskRequest
             if (step == '2')
             {
@@ -903,6 +876,7 @@ const Pib = () => {
                                     setDescription(profileData[0]['description'])
                                 }
                             }
+                            setIsLoading(false);
                         } else if (step == "2") {
                             setTranscriptQuestions(undefined)
                             setLatestTranscript(undefined)
@@ -928,6 +902,7 @@ const Pib = () => {
                                 }
                             }
                             setLatestTranscript(dataPoints)
+                            setIsLoading(false);
                         } else if (step == "3") {
                             setPressReleases(undefined)
                             setSecFilings(undefined);
@@ -949,6 +924,7 @@ const Pib = () => {
                                     setPressReleases(pReleases);
                                 }
                             }
+                            setIsLoading(false);
                         } else if (step == "4") {
                             setSecFilings(undefined);
                             setResearchReports(undefined);
@@ -966,6 +942,7 @@ const Pib = () => {
                                     setSecFilings(sFilings);
                                 }
                             }
+                            setIsLoading(false);
                         } else if (step == "5") {
                             setResearchReports(undefined);
                             for (let i = 0; i < answer.length; i++) {
@@ -982,6 +959,7 @@ const Pib = () => {
                                     setResearchReports(rReports);
                                 }
                             }
+                            setIsLoading(false);
                         } else {
                             console.log("Step not defined")
                         }
@@ -1604,7 +1582,7 @@ const Pib = () => {
                                         <div className={styles.example}>
                                             <p><b>Step 3 : </b> 
                                               This step focuses on accessing the <b>Publicly</b> available press releases for the company.  For our use-case we are focusing on
-                                              generating summary only for the latest 25 press releases.  Besides genearting the summary, we are also using GPT to find 
+                                              generating summary only for the latest 25 press releases.  Besides generating the summary, we are also using GPT to find 
                                               sentiment and the sentiment score for the press-releases.
                                             </p>
                                         </div>
@@ -1623,8 +1601,8 @@ const Pib = () => {
                                             multiSelect={false}
                                         />
                                         &nbsp;
-                                        <PrimaryButton text="Fetch Press Releases" onClick={() => processPib("3", "No")} disabled={isLoading || !missingSymbol} />&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("3", "Yes")} disabled={isLoading || !missingSymbol} />
+                                        <PrimaryButton text="Fetch Press Releases" onClick={() => processPib("3", "No")} disabled={isLoading || missingSymbol} />&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("3", "Yes")} disabled={isLoading || missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1701,8 +1679,8 @@ const Pib = () => {
                                         &nbsp;
                                         <TextField value={customSecTopic} onChange={onCustomSecTopicChange} />
                                         &nbsp;
-                                        <PrimaryButton text="Crawl SEC Data" onClick={() => processPib("4", "No")} disabled={isLoading || !missingSymbol}/>&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("4", "Yes")} disabled={isLoading || !missingSymbol} />
+                                        <PrimaryButton text="Crawl SEC Data" onClick={() => processPib("4", "No")} disabled={isLoading || missingSymbol}/>&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("4", "Yes")} disabled={isLoading || missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1761,8 +1739,8 @@ const Pib = () => {
                                             multiSelect={false}
                                         />
                                         &nbsp;
-                                        <PrimaryButton text="Recommendations" onClick={() => processPib("5", "No")} disabled={isLoading || !missingSymbol}/>&nbsp;
-                                        <PrimaryButton text="Reprocess" onClick={() => processPib("5", "Yes")} disabled={isLoading || !missingSymbol} />
+                                        <PrimaryButton text="Recommendations" onClick={() => processPib("5", "No")} disabled={isLoading || missingSymbol}/>&nbsp;
+                                        <PrimaryButton text="Reprocess" onClick={() => processPib("5", "Yes")} disabled={isLoading || missingSymbol} />
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1821,7 +1799,7 @@ const Pib = () => {
                                             multiSelect={false}
                                         />
                                         &nbsp;
-                                        <PrimaryButton text="Get News & Sentiment" onClick={() => processPib("6", "No")} disabled={isLoading || !missingSymbol}/>
+                                        <PrimaryButton text="Get News & Sentiment" onClick={() => processPib("6", "No")} disabled={isLoading || missingSymbol}/>
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1905,7 +1883,7 @@ const Pib = () => {
                                             multiSelect={false}
                                         />
                                         &nbsp;
-                                        <PrimaryButton text="Show Financial Data" onClick={() => processPib("7", "No")} disabled={isLoading || !missingSymbol}/>
+                                        <PrimaryButton text="Show Financial Data" onClick={() => processPib("7", "No")} disabled={isLoading || missingSymbol}/>
                                     </Stack.Item>
                                     {isLoading ? (
                                         <Stack.Item grow={2} styles={stackItemStyles}>
@@ -1967,7 +1945,7 @@ const Pib = () => {
                                             multiSelect={false}
                                         />
                                         &nbsp;
-                                        <PrimaryButton text="Generate Presentation" onClick={() => generatePresentation()} disabled={isLoading || !missingSymbol}/>
+                                        <PrimaryButton text="Generate Presentation" onClick={() => generatePresentation()} disabled={isLoading || missingSymbol}/>
                                     </Stack.Item>
                                 </Stack>
                             </Stack>
