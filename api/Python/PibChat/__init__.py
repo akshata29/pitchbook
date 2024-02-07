@@ -33,6 +33,13 @@ CosmosEndpoint = os.environ['CosmosEndpoint']
 CosmosKey = os.environ['CosmosKey']
 CosmosDatabase = os.environ['CosmosDatabase']
 CosmosContainer = os.environ['CosmosContainer']
+PibEarningsCallIndex = os.environ['PibEarningsCallIndex']
+PibPressReleaseIndex = os.environ['PibPressReleaseIndex']
+PibEarningsCallVectorIndex = os.environ['PibEarningsCallVectorIndex']
+PibSummariesIndex = os.environ['PibSummariesIndex']
+PibSecDataIndex = os.environ['PibSecDataIndex']
+PibSecDataVectorIndex = os.environ['PibSecDataVectorIndex']
+PibDataIndex = os.environ['PibDataIndex']
 
 
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
@@ -116,7 +123,7 @@ def insertMessage(sessionId, type, role, totalTokens, tokens, response, cosmosCo
     }
     cosmosContainer.create_item(body=aiMessage)
 
-def GetRrrAnswer(history, approach, overrides, symbol, indexName):
+def GetRrrAnswer(history, approach, overrides, symbol, pibChatType):
     embeddingModelType = overrides.get('embeddingModelType') or 'azureopenai'
     topK = overrides.get("top") or 5
     temperature = overrides.get("temperature") or 0.3
@@ -127,6 +134,15 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
     deploymentType = overrides.get('deploymentType') or 'gpt35'
     overrideChain = overrides.get("chainType") or 'stuff'
     searchType = overrides.get('searchType') or 'similarity'
+
+    if pibChatType == "earningCalls":
+        indexName = PibEarningsCallVectorIndex
+        filterData = "symbol eq '" + symbol + "'"
+        returnFields=['id', 'content', 'callDate']
+    elif pibChatType == "secFiling":
+        indexName = PibSecDataVectorIndex
+        filterData = "symbol eq '" + symbol + "' and filingType eq '" + "10-K" + "'"
+        returnFields=['id', 'content', 'latestFilingDate']
 
     logging.info("Search for Top " + str(topK))
     try:
@@ -442,29 +458,16 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
 
         logging.info("Final Prompt created")
 
-        if indexName == "latestsecfilings":
-            filterData = "symbol eq '" + symbol + "' and filingType eq '" + "10-K" + "'"
-            r = performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, embeddingModelType, 
-                               OpenAiEmbedding, filterData, q, indexName, topK, returnFields=['id', 'content', 'latestFilingDate'])
-            
-            if r == None:
-                docs = [Document(page_content="No results found")]
-            else :
-                docs = [
-                    Document(page_content=doc['content'], metadata={"id": doc['id'], "source": doc['latestFilingDate']})
-                    for doc in r
-                    ]
-        elif indexName == "latestearningcalls":
-            filterData = "symbol eq '" + symbol + "'"
-            r = performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, embeddingModelType, 
-                               OpenAiEmbedding, filterData, q, indexName, topK, returnFields=['id', 'content', 'callDate'])
-            if r == None:
-                docs = [Document(page_content="No results found")]
-            else :
-                docs = [
-                    Document(page_content=doc['content'], metadata={"id": doc['id'], "source":doc['callDate']})
-                    for doc in r
-                    ]
+        r = performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, embeddingModelType, 
+                            OpenAiEmbedding, filterData, q, indexName, topK, returnFields=returnFields)
+        
+        if r == None:
+            docs = [Document(page_content="No results found")]
+        else :
+            docs = [
+                Document(page_content=doc['content'], metadata={"id": doc['id'], "source": ''})
+                for doc in r
+                ]
        
         rawDocs = []
         for doc in docs:

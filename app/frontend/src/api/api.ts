@@ -154,7 +154,37 @@ export async function getPib(step: string, symbol: string, embeddingModelType: s
   }
   return parsedResponse.values[0].data
 }
+export async function getSuggestedQuestions(symbol: string, options:AskRequest): Promise<AskResponse> {
+  const response = await fetch('/getSuggestedQuestions', {
+      method: "POST",
+      headers: {
+          "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        symbol: symbol,
+        postBody: {
+          values: [
+            {
+              recordId: 0,
+              data: {
+                text: '',
+                overrides: {
+                    topics: options.overrides?.topics,
+                  }
+  
+              }
+            }
+          ]
+        }
+      })
+  });
 
+  const parsedResponse: ChatResponse = await response.json();
+  if (response.status > 299 || !response.ok) {
+      throw Error("Unknown error");
+  }
+  return parsedResponse.values[0].data
+}
 export async function pibChatGptApi(options: ChatRequest, symbol: string, indexName: string): Promise<AskResponse> {
   const response = await fetch('/pibChat' , {
       method: "POST",

@@ -36,7 +36,25 @@ def getPib():
     except Exception as e:
         logging.exception("Exception in /getPib")
         return jsonify({"error": str(e)}), 500
-    
+
+@app.route("/getSuggestedQuestions", methods=["POST"])
+def getSuggestedQuestions():
+    symbol=request.json["symbol"]
+    postBody=request.json["postBody"]
+ 
+    try:
+        headers = {'content-type': 'application/json'}
+        url = os.environ.get("PibChatQuestions_Url")
+
+        data = postBody
+        params = {'symbol': symbol }
+        resp = requests.post(url, params=params, data=json.dumps(data), headers=headers)
+        jsonDict = json.loads(resp.text)
+        return jsonify(jsonDict)
+    except Exception as e:
+        logging.exception("Exception in /getSuggestedQuestions")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/pibChat", methods=["POST"])
 def pibChat():
     symbol=request.json["symbol"]

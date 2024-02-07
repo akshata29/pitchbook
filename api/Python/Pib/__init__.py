@@ -113,7 +113,6 @@ def getProfileAndBio(pibIndexName, cik, step, symbol, temperature, llm, today):
     s1Data.append(sData)
     mergeDocs(SearchService, SearchKey, pibIndexName, step1Biography)
     return s1Data
-
 def processStep1(pibIndexName, cik, step, symbol, temperature, llm, today, reProcess):
     s1Data = []
 
@@ -234,7 +233,6 @@ def processStep1(pibIndexName, cik, step, symbol, temperature, llm, today, rePro
         s1Data = getProfileAndBio(pibIndexName, cik, step, symbol, temperature, llm, today)
 
     return s1Data
-
 def getEarningCalls(totalYears, historicalYear, symbol, today):
     # Call the paid data (FMP) API
     # Get the earning call transcripts for the last 3 years and merge documents into the index.
@@ -294,7 +292,6 @@ def getEarningCalls(totalYears, historicalYear, symbol, today):
         return earningsData[-1]
     except Exception as e:
         logging.error(f"Error occured while processing {symbol} : {e}")
-
 def getPressReleases(today, symbol):
     # For now we are calling API to get data, but otherwise we need to ensure the data is not persisted in our 
     # index repository before calling again, if it is persisted then we need to delete it first
@@ -323,7 +320,6 @@ def getPressReleases(today, symbol):
 
     mergeDocs(SearchService, SearchKey, pressReleaseIndexName, pressReleasesList)
     return pressReleasesList
-
 # Helper function to find the answer to a question
 def findAnswer(chainType, topK, symbol, quarter, year, question, indexName, embeddingModelType, llm):
     # Since we already index our document, we can perform the search on the query to retrieve "TopK" documents
@@ -397,7 +393,6 @@ def findAnswer(chainType, topK, symbol, quarter, year, question, indexName, embe
         outputAnswer = answer['output_text']
 
     return outputAnswer
-
 def summarizeTopic(llm, query, embeddingModelType, indexName, symbol):
 
     promptTemplate = """You are an AI assistant tasked with summarizing documents from 
@@ -432,8 +427,7 @@ def summarizeTopic(llm, query, embeddingModelType, indexName, symbol):
                                             map_prompt=customPrompt, combine_prompt=customPrompt)
         summary = summaryChain({"input_documents": resultsDoc}, return_only_outputs=True)
         outputAnswer = summary['output_text']
-        return outputAnswer 
-    
+        return outputAnswer   
 def processTopicSummary(llm, symbol, cik, step, pibSummaryIndex, embeddingModelType, selectedTopics,
                         earningVectorIndexName, docType):
     topicSummary = []
@@ -466,7 +460,6 @@ def processTopicSummary(llm, symbol, cik, step, pibSummaryIndex, embeddingModelT
                     })
     mergeDocs(SearchService, SearchKey, pibSummaryIndex, topicSummary)
     return topicSummary
-
 def processSecTopicSummary(llm, symbol, cik, step, pibSummaryIndex, embeddingModelType, selectedTopics,
                         earningVectorIndexName, docType, secFilingList):
     topicSummary = []
@@ -521,7 +514,6 @@ def processSecTopicSummary(llm, symbol, cik, step, pibSummaryIndex, embeddingMod
                     })
     mergeDocs(SearchService, SearchKey, pibSummaryIndex, topicSummary)
     return topicSummary
-
 def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType, totalYears, 
                  historicalYear, reProcess, selectedTopics):
     r = findPibData(SearchService, SearchKey, pibIndexName, cik, step, returnFields=['id', 'symbol', 'cik', 'step', 'description', 'insertedDate',
@@ -750,7 +742,6 @@ def processStep2(pibIndexName, cik, step, symbol, llm, today, embeddingModelType
             content = df.iloc[0]['content']
 
     return s2Data, content, latestCallDate
-
 def summarizePressReleases(llm, docs):
     promptTemplate = """You are an AI assistant tasked with summarizing company's press releases and performing sentiments on those. 
                 Your summary should accurately capture the key information in the press-releases while avoiding the omission of any domain-specific words. 
@@ -767,7 +758,6 @@ def summarizePressReleases(llm, docs):
     summary = summaryChain({"input_documents": docs}, return_only_outputs=True)
     outputAnswer = summary['output_text']
     return outputAnswer
-
 def processStep3(symbol, cik, step, llm, pibIndexName, today, reProcess):
     # With the data indexed, let's summarize the information
     s3Data = []
@@ -837,7 +827,6 @@ def processStep3(symbol, cik, step, llm, pibIndexName, today, reProcess):
                     'pibData' : s['pibData']
                 })
     return s3Data
-
 def generateSummaries(llm, docs):
     # With the data indexed, let's summarize the information
     promptTemplate = """You are an AI assistant tasked with summarizing sections from the financial document like 10-K and 10-Q report. 
@@ -854,7 +843,6 @@ def generateSummaries(llm, docs):
     summaryChain = load_summarize_chain(llm, chain_type=chainType)
     summary = summaryChain({"input_documents": docs}, return_only_outputs=True)
     return summary
-
 def processStep4(symbol, cik, filingType, historicalYear, currentYear, embeddingModelType, llm, pibIndexName, 
                  step, today, reProcess, selectedTopics):
 
@@ -1101,7 +1089,6 @@ def processStep4(symbol, cik, filingType, historicalYear, currentYear, embedding
         mergeDocs(SearchService, SearchKey, pibIndexName, s4Data)
 
     return s4Data
-
 def processStep5(pibIndexName, cik, step, symbol, today, reProcess):
     s5Data = []
 
@@ -1260,7 +1247,6 @@ def processStep5(pibIndexName, cik, step, symbol, today, reProcess):
                     'pibData' : s['pibData']
                 })
     return s5Data
-
 def PibSteps(step, symbol, embeddingModelType, reProcess, overrides):
     logging.info("Calling PibSteps Open AI for symbol " + symbol)
 
@@ -1349,8 +1335,6 @@ def PibSteps(step, symbol, embeddingModelType, reProcess, overrides):
       return {"data_points": "", "answer": "Exception during finding answers - Error : " + str(e), "thoughts": "", "sources": "", "nextQuestions": "", "error":  str(e)}
 
     #return answer
-
-
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     logging.info(f'{context.function_name} HTTP trigger function processed a request.')
     if hasattr(context, 'retry_context'):
@@ -1382,7 +1366,6 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
              "Invalid body",
              status_code=400
         )
-
 def ComposeResponse(step, symbol, embeddingModelType, reProcess, jsonData):
     values = json.loads(jsonData)['values']
 
@@ -1396,7 +1379,6 @@ def ComposeResponse(step, symbol, embeddingModelType, reProcess, jsonData):
         if outputRecord != None:
             results["values"].append(outputRecord)
     return json.dumps(results, ensure_ascii=False)
-
 def TransformValue(step, symbol, embeddingModelType, reProcess, record):
     logging.info("Calling Transform Value")
     try:

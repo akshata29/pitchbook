@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from "react";
-import { Spinner, TextField, Stack} from "@fluentui/react";
+import { Spinner, TextField, Stack, on} from "@fluentui/react";
 import { ShieldLockRegular } from "@fluentui/react-icons";
 import { SparkleFilled } from "@fluentui/react-icons";
 import github from "../../assets/github.svg"
@@ -8,6 +8,7 @@ import { Dropdown, IDropdownStyles, IDropdownOption } from '@fluentui/react/lib/
 
 import { AskResponse, AskRequest, getPib, getUserInfo, Approaches, getNews, getSocialSentiment, getIncomeStatement, getCashFlow } from "../../api";
 import { pibChatGptApi, ChatRequest, ChatTurn, getAllIndexSessions, getIndexSession, getIndexSessionDetail, deleteIndexSession, renameIndexSession } from "../../api";
+import { getSuggestedQuestions } from "../../api";
 import { Label } from '@fluentui/react/lib/Label';
 import { Pivot, PivotItem } from '@fluentui/react';
 import { IStackTokens, IStackItemStyles } from '@fluentui/react/lib/Stack';
@@ -32,6 +33,7 @@ import pptxgen from "pptxgenjs";
 const Pib = () => {
 
     const dropdownStyles: Partial<IDropdownStyles> = { dropdown: { width: 400 } };
+    const dropdownLongStyles: Partial<IDropdownStyles> = { dropdown: { width: 700 } };
     const dropdownShortStyles: Partial<IDropdownStyles> = { dropdown: { width: 150 } };
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -47,11 +49,16 @@ const Pib = () => {
     const [selectedIndustry, setSelectedIndustry] = useState<IDropdownOption>();
     const [companies, setCompanies] = useState<{key: string, text: string;}[]>([]);
     const [missingSymbol, setMissingSymbol] = useState<boolean>(true);
+    const [sampleEarningsQuestions, setSampleEarningsQuestions] = useState<{key: string, text: string;}[]>([]);
+    const [selectedSampleQuestion, setSelectedSampleQuestion] = useState<IDropdownOption>();
+    const [sampleSecQuestions, setSampleSecQuestions] = useState<{key: string, text: string;}[]>([]);
+    const [selectedSecQuestion, setSelectedSecQuestion] = useState<IDropdownOption>();
 
     const [symbol, setSymbol] = useState<string>('');
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
     const [biography, setBiography] = useState<any>();
     const [companyName, setCompanyName] = useState<string>();
+    const [selectedCompanyName, setSelectedCompanyName] = useState<string>('');
     const [cik, setCik] = useState<string>();
     const [exchange, setExchange] = useState<string>();
     const [industry, setIndustry] = useState<string>();
@@ -240,11 +247,11 @@ const Pib = () => {
     ]
     const docOptions = [
         {
-            key: 'latestearningcalls',
+            key: 'earningCalls',
             text: 'Earning Calls'
         },
         {
-            key: 'latestsecfilings',
+            key: 'secFiling',
             text: 'SEC Filings'
         }
     ]
@@ -447,6 +454,7 @@ const Pib = () => {
     const onSectorChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedSector(item);
         setSymbol('');
+        setSampleEarningsQuestions([])
         setMissingSymbol(true)
         const filteredIndustry = Stocks.Tickers.filter(({Sector})=>Sector === String(item?.key))
 
@@ -457,6 +465,7 @@ const Pib = () => {
 
         setIndustries(industries)
         setSelectedIndustry(industries[0])
+        setSelectedCompanyName('')
 
         const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
         String(item?.key) === Sector)
@@ -466,9 +475,21 @@ const Pib = () => {
         })
         setCompanies(companies)
     }
+    const onSampleEarningsQuestionsChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        setSelectedSampleQuestion(item);
+        makeApiRequest(String(item?.key))
+        lastQuestionRef.current = String(item?.key);
+    }
+    const onSampleSecQuestionsChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        setSelectedSecQuestion(item);
+        makeApiRequest(String(item?.key))
+        lastQuestionRef.current = String(item?.key);
+    }
     const onIndustryChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedIndustry(item);
         setSymbol('');
+        setSampleEarningsQuestions([])
+        setSelectedCompanyName('')
         setMissingSymbol(true)
         const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(item?.key) && 
         String(selectedSector?.key) === Sector)
@@ -484,9 +505,34 @@ const Pib = () => {
         setSelectedDoc(item);
         clearChat();
         getCosmosSession(String(item?.key), String(symbol))
+        suggestQuestions(String(item?.key))
     }
     const onSymbolChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption) => {
         setSymbol(String(item?.key));
+        setSampleEarningsQuestions([])
+        setBiography(undefined)
+        setCompanyName(undefined)
+        setCik(undefined)
+        setExchange(undefined)
+        setIndustry(undefined)
+        setSector(undefined)
+        setWebsite(undefined)
+        setAddress(undefined)
+        setDescription(undefined)
+        setLatestTranscript(undefined)
+        setSummaryTranscript(undefined)
+        setTranscriptQuestions(undefined)
+        setPressReleases(undefined)
+        setSecFilings(undefined);
+        setResearchReports(undefined);
+        setStockNews(undefined);
+        setIncomeStatement(undefined);
+        setCashFlow(undefined);
+
+        const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector, Symbol})=>Industry === String(selectedIndustry?.key) && 
+        String(selectedSector?.key) === Sector && String(item?.key) === Symbol)
+        setSelectedCompanyName(filteredCompanies[0].Name)
+
         if (item?.key == '') {
           setMissingSymbol(true)
         }
@@ -974,6 +1020,56 @@ const Pib = () => {
             setIsLoading(false);
         }
     }
+    const suggestQuestions = async( questionType: string) => {
+        setIsLoading(true)
+        setSampleEarningsQuestions([])
+        setSampleSecQuestions([])
+        let request: AskRequest
+        request = {
+            question : '',
+            approach: Approaches.ReadDecomposeAsk,
+            overrides: {
+                topics: [questionType]
+            }
+        };
+        await getSuggestedQuestions(symbol, request)
+        .then(async (response) => {
+                const answer = JSON.parse(JSON.stringify(response.answer));
+                if (questionType == "earningCalls") {
+                    const earningsSampleQuestions = []
+                    for (let i = 0; i < answer.length; i++) {
+                        const pibData = eval(JSON.parse(JSON.stringify(answer[i].pibQuestions)))
+                        for (let i = 0; i < pibData.length; i++) 
+                        {
+                            earningsSampleQuestions.push({
+                                "key": pibData[i]['question'],
+                                "text": pibData[i]['question'],
+                                });
+                        }
+                    }
+                    setSampleEarningsQuestions(earningsSampleQuestions)
+                    setIsLoading(false);
+                } else if (questionType == "secFiling") {
+                    const secSampleQuestions = []
+                    for (let i = 0; i < answer.length; i++) {
+                        const pibData = eval(JSON.parse(JSON.stringify(answer[i].pibQuestions)))
+                        for (let i = 0; i < pibData.length; i++) 
+                        {
+                            secSampleQuestions.push({
+                                "key": pibData[i]['question'],
+                                "text": pibData[i]['question'],
+                                });
+                        }
+                    }
+                    setSampleSecQuestions(secSampleQuestions)
+                    setIsLoading(false);
+                } else {
+                    console.log("Step not defined")
+                }
+            }
+        )
+        setIsLoading(false);
+    }
     const clearChat = () => {
         lastQuestionRef.current = "";
         error && setError(undefined);
@@ -1211,6 +1307,9 @@ const Pib = () => {
             clearChat()
             setSelectedDoc(docOptions[0])
             getCosmosSession(docOptions[0]?.key, String(symbol))
+            if (sampleEarningsQuestions.length === 0) {
+                suggestQuestions("earningCalls")
+            }
         } 
         if (item?.props.headerText === "Chat Gpt") {
             getCosmosSession("chatgpt", "cogsearchvs")
@@ -1223,6 +1322,7 @@ const Pib = () => {
         } else
             setShowAuthMessage(false)
 
+        setSampleEarningsQuestions([])
         const uniqSector = [...new Set(Stocks.Tickers.map(({Sector})=>Sector))]
         const sectors = uniqSector.map((sector) => {
             return {key: sector, text: sector}
@@ -1260,13 +1360,13 @@ const Pib = () => {
             <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
-                    <Link to="https://dataaipdfchat.azurewebsites.net/" target={"_blank"} className={styles.headerTitleContainer}>
+                    <a href="https://aka.ms/pitchbook" target={"_blank"} className={styles.headerTitleContainer}>
                         <h3 className={styles.headerTitle}>Pitch Book</h3>
-                    </Link>
+                    </a>
                     <nav>
                         <ul className={styles.headerNavList}>
                             <li className={styles.headerNavLeftMargin}>
-                                <a href="https://github.com/akshata29/pitchbook" target={"_blank"} title="Github repository link">
+                                <a href="https://aka.ms/pitchbookcode" target={"_blank"} title="Github repository link">
                                     <img
                                         src={github}
                                         alt="Github logo"
@@ -1378,6 +1478,14 @@ const Pib = () => {
                                             multiSelect={false}
                                             //errorMessage={!missingSymbol ? '' : "Symbol is required for PIB Functionality"}/>
                                         />
+                                        &nbsp;
+                                        {
+                                            selectedCompanyName != "" && selectedCompanyName !== undefined? 
+                                            (
+                                                <Label>Company Name : {selectedCompanyName}</Label>
+                                            ) : ( null
+                                            )
+                                        }
                                         &nbsp;
                                         <PrimaryButton text="Get Profile & Bio" onClick={() => processPib("1", "No")} disabled={isLoading || missingSymbol} />&nbsp;
                                         <PrimaryButton text="Reprocess" onClick={() => processPib("1", "Yes")} disabled={isLoading || missingSymbol} />
@@ -1977,8 +2085,33 @@ const Pib = () => {
                                             onChange={onDocChange}
                                             placeholder="Select an PDF"
                                             options={docOptions}
+                                            disabled={missingSymbol}
                                             styles={dropdownStyles}
                                         />
+                                    </Stack.Item>
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        <PrimaryButton text="Generate Questions" onClick={() => suggestQuestions(selectedDoc?.key as string)} disabled={missingSymbol || !sampleEarningsQuestions}/>
+                                        &nbsp;
+                                        {selectedDoc?.key == "earningCalls" ? (
+                                            <Dropdown
+                                                selectedKey={selectedSampleQuestion?.key}
+                                                onChange={onSampleEarningsQuestionsChange}
+                                                placeholder="Select Question"
+                                                options={sampleEarningsQuestions}
+                                                disabled={missingSymbol}
+                                                styles={dropdownLongStyles}
+                                                multiSelect={false}
+                                            />) : (
+                                                <Dropdown
+                                                selectedKey={selectedSecQuestion?.key}
+                                                onChange={onSampleSecQuestionsChange}
+                                                placeholder="Select Question"
+                                                options={sampleSecQuestions}
+                                                disabled={missingSymbol}
+                                                styles={dropdownLongStyles}
+                                                multiSelect={false}
+                                                />
+                                            )}
                                     </Stack.Item>
                                 </Stack>
                         </Stack>

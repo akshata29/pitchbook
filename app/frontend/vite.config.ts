@@ -13,7 +13,7 @@ export default defineConfig({
       })],
     build: {
         outDir: "../backend/static",
-        emptyOutDir: false,
+        emptyOutDir: true,
         sourcemap: true
     },
     server: {
@@ -32,6 +32,7 @@ export default defineConfig({
             "/getSocialSentiment": "http://127.0.0.1:5003",
             "/getNews": "http://127.0.0.1:5003",
             "/renameIndexSession": "http://127.0.0.1:5003",
+            "/getSuggestedQuestions": "http://127.0.0.1:5003",
         }
         // proxy: {
         //     "/ask": {

@@ -92,6 +92,36 @@ def createPibIndex(SearchService, SearchKey, indexName):
     else:
         logging.info(f"Search index {indexName} already exists")
 
+def createPibQuestionsIndex(SearchService, SearchKey, indexName):
+    indexClient = SearchIndexClient(endpoint=f"https://{SearchService}.search.windows.net/",
+            credential=AzureKeyCredential(SearchKey))
+    if indexName not in indexClient.list_index_names():
+        index = SearchIndex(
+            name=indexName,
+            fields=[
+                        SimpleField(name="id", type=SearchFieldDataType.String, key=True),
+                        SearchableField(name="symbol", type=SearchFieldDataType.String, sortable=True,
+                                        searchable=True, retrievable=True, filterable=True, facetable=True, analyzer_name="en.microsoft"),
+                        SearchableField(name="questionType", type=SearchFieldDataType.String, sortable=True,
+                                        searchable=True, retrievable=True, filterable=True, facetable=True, analyzer_name="en.microsoft"),                                        
+                        SearchableField(name="pibQuestions", type=SearchFieldDataType.String,
+                                        searchable=True, retrievable=True, analyzer_name="en.microsoft"),
+            ],
+            semantic_settings=SemanticSettings(
+                configurations=[SemanticConfiguration(
+                    name='semanticConfig',
+                    prioritized_fields=PrioritizedFields(
+                        title_field=SemanticField(field_name="pibQuestions"), prioritized_content_fields=[SemanticField(field_name='pibQuestions')]))])
+        )
+
+        try:
+            logging.info(f"Creating {indexName} search index")
+            indexClient.create_index(index)
+        except Exception as e:
+            logging.info(e)
+    else:
+        logging.info(f"Search index {indexName} already exists")
+
 def findPibData(SearchService, SearchKey, indexName, cik, step, returnFields=["id", "symbol", "cik", "step"] ):
     searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
         index_name=indexName,
@@ -109,6 +139,27 @@ def findPibData(SearchService, SearchKey, indexName, cik, step, returnFields=["i
     except Exception as e:
         logging.info(e)
 
+    return None
+
+def findPibQuestionsData(SearchService, SearchKey, indexName, symbol, questionType, returnFields=["id", "symbol", "questionType"] ):
+    searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
+        index_name=indexName,
+        credential=AzureKeyCredential(SearchKey))
+    
+    try:
+        r = searchClient.search(  
+            search_text="",
+            filter="symbol eq '" + symbol + "' and questionType eq '" + questionType + "'",
+            select=returnFields,
+            semantic_configuration_name="semanticConfig",
+            include_total_count=True
+        )
+        logging.info(f"Found {r.get_count()} sections for {symbol} and questionType {questionType}")
+        return r
+    except Exception as e:
+        logging.info(e)
+
+    logging.info(f"Found 0 sections for {symbol} and questionType {questionType}")
     return None
 
 def deletePibData(SearchService, SearchKey, indexName, cik, step, returnFields=["id", "symbol", "cik", "step"] ):
@@ -203,6 +254,49 @@ def findEarningCallsBySymbol(SearchService, SearchKey, indexName, symbol, return
     except Exception as e:
         logging.info(e)
 
+    return None
+
+def findLatestEarningCallBySymbol(SearchService, SearchKey, indexName, symbol, returnFields=["id", "symbol", "quarter", "year", "callDate", "content"]):
+    searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
+        index_name=indexName,
+        credential=AzureKeyCredential(SearchKey))
+    
+    try:
+        r = searchClient.search(  
+            search_text="",
+            filter="symbol eq '" + symbol + "'",
+            select=returnFields,
+            top=1,
+            order_by=["year desc", "quarter desc"],
+            include_total_count=True
+        )
+        logging.info(f"Found {r.get_count()} sections for {symbol}")
+        return r
+    except Exception as e:
+        logging.info(e)
+
+    logging.info(f"Found 0 sections for {symbol}")
+    return None
+
+def findLatestSecFilingsBySymbol(SearchService, SearchKey, indexName, cik, filingType, returnFields=["id", "cik", "filingType", "filingDate", "content"]):
+    searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
+        index_name=indexName,
+        credential=AzureKeyCredential(SearchKey))
+    
+    try:
+        r = searchClient.search(  
+            search_text="",
+            filter="cik eq '" + cik + "' and filingType eq '" + filingType + "'",
+            select=returnFields,
+            top=1,
+            include_total_count=True
+        )
+        logging.info(f"Found {r.get_count()} sections for {cik}")
+        return r
+    except Exception as e:
+        logging.info(e)
+
+    logging.info(f"Found 0 sections for {cik}")
     return None
 
 def performEarningCallCogSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, 

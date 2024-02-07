@@ -380,6 +380,7 @@ class ExtractItems:
                 doc_type = re.search(r'\n[^\S\r\n]*<TYPE>(.*?)\n', doc, flags=regex_flags)
                 doc_type = doc_type.group(1) if doc_type else None
                 if doc_type.startswith('10'):
+                    logging.info(f'\nFound document type 10K for {filing_metadata["filename"]}')
                     doc_10k = BeautifulSoup(doc, 'lxml')
                     is_html = (True if doc_10k.find('td') else False) and (True if doc_10k.find('tr') else False)
                     if not is_html:
@@ -393,6 +394,7 @@ class ExtractItems:
                 doc_10k = BeautifulSoup(content, 'lxml')
                 is_html = (True if doc_10k.find('td') else False) and (True if doc_10k.find('tr') else False)
                 if not is_html:
+                    logging.info("Not HTML")
                     doc_10k = content
 
             # if not is_html and not documents:
@@ -438,7 +440,7 @@ class ExtractItems:
 
             if all_items_null:
                 logging.info(f'\nCould not extract any item for {absolute_10k_filename}')
-                return None
+                return json_content
 
             return json_content
         except Exception as e:
