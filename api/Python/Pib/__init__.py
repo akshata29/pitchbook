@@ -2,7 +2,7 @@ from Utilities.envVars import *
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-from langchain.utilities import BingSearchAPIWrapper
+from langchain_community.utilities.bing_search import BingSearchAPIWrapper
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -17,7 +17,8 @@ from Utilities.pibCopilot import indexEarningCallSections, createEarningCallVect
 from Utilities.pibCopilot import findLatestSecFilings, indexSecFilingsSections, createSecFilingsVectorIndex, findTopicSummaryInIndex
 from Utilities.pibCopilot import deleteLatestCallSummaries
 from Utilities.fmp import *
-from langchain.chat_models import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 import logging, json, os
 import uuid
 import azure.functions as func
@@ -855,7 +856,7 @@ def processStep4(symbol, cik, filingType, historicalYear, currentYear, embedding
     if len(secFilingsListResp) > 0:
         latestFilingDateTime = datetime.strptime(secFilingsListResp[0]['fillingDate'], '%Y-%m-%d %H:%M:%S')
         logging.info("Latest Filing Date Time : " + str(latestFilingDateTime))
-        latestFilingDate = latestFilingDateTime.strftime("%Y-%m-%d")
+        latestFilingDate = latestFilingDateTime.strftime("%Y/%m/%d")
         logging.info("Latest Filing Date : " + str(latestFilingDate))
         filingYear = latestFilingDateTime.strftime("%Y")
         filingMonth = int(latestFilingDateTime.strftime("%m"))

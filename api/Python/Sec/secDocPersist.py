@@ -1,23 +1,14 @@
 import logging, json, os
-import azure.functions as func
 import os
-import numpy as np
 from azure.search.documents.indexes.models import (  
     SearchIndex,  
-    SearchField,  
     SearchFieldDataType,  
     SimpleField,  
     SearchableField,  
     SearchIndex,  
     SemanticConfiguration,  
-    PrioritizedFields,  
     SemanticField,  
-    SearchField,  
-    SemanticSettings,  
-    VectorSearch,  
-    HnswVectorSearchAlgorithmConfiguration,  
 )
-from azure.search.documents.models import Vector 
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import *
 from azure.search.documents import SearchClient
@@ -26,6 +17,7 @@ from Utilities.envVars import *
 import tiktoken
 from itertools import islice
 from Utilities.azureBlob import upsertMetadata, getBlob, getAllBlobs
+from azure.search.documents.models import VectorizedQuery
 
 OpenAiDocStorName = os.environ["OpenAiDocStorName"]
 OpenAiDocStorKey = os.environ["OpenAiDocStorKey"]
@@ -110,13 +102,15 @@ def createSearchIndex(indexType, indexName):
                             #             searchable=True, vector_search_dimensions=1536, vector_search_configuration="vectorConfig"),
                             SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
                 ],
-                semantic_settings=SemanticSettings(
-                    configurations=[SemanticConfiguration(
-                        name='semanticConfig',
-                        prioritized_fields=PrioritizedFields(
-                            title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))],
-                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')])
-                )
+                semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')],
+                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')]
+                    )
+                )])
+            )
         elif indexType == "cogsearch":
             index = SearchIndex(
             name=indexName,
@@ -161,14 +155,15 @@ def createSearchIndex(indexType, indexName):
                         #             searchable=True, vector_search_dimensions=1536, vector_search_configuration="vectorConfig"),
                         SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))],
-                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')],
+                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')]
+                    )
+                )])
             )
-
         try:
             print(f"Creating {indexName} search index")
             indexClient.create_index(index)

@@ -11,17 +11,14 @@ from azure.search.documents.indexes.models import (
     SearchableField,  
     SearchIndex,  
     SemanticConfiguration,  
-    PrioritizedFields,  
     SemanticField,  
     SearchField,  
-    SemanticSettings,  
     VectorSearch,  
-    HnswVectorSearchAlgorithmConfiguration,  
 )
-from azure.search.documents.models import Vector  
 from tenacity import retry, wait_random_exponential, stop_after_attempt  
 import logging
 from openai import OpenAI, AzureOpenAI
+from azure.search.documents.models import VectorizedQuery
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 # Function to generate embeddings for title and content fields, also used for query embeddings
@@ -77,11 +74,13 @@ def createPibIndex(SearchService, SearchKey, indexName):
                                         searchable=True, retrievable=True, analyzer_name="en.microsoft"),
                         #SimpleField(name="inserteddate", type="Edm.String", searchable=True, retrievable=True,),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="pibData"), prioritized_content_fields=[SemanticField(field_name='pibData')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="pibData"), 
+                        prioritized_content_fields=[SemanticField(field_name='pibData')]
+                    )
+                )])
         )
 
         try:
@@ -107,11 +106,13 @@ def createPibQuestionsIndex(SearchService, SearchKey, indexName):
                         SearchableField(name="pibQuestions", type=SearchFieldDataType.String,
                                         searchable=True, retrievable=True, analyzer_name="en.microsoft"),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="pibQuestions"), prioritized_content_fields=[SemanticField(field_name='pibQuestions')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="pibQuestions"), 
+                        prioritized_content_fields=[SemanticField(field_name='pibQuestions')]
+                    )
+                )])
         )
 
         try:
@@ -203,11 +204,13 @@ def createEarningCallIndex(SearchService, SearchKey, indexName):
                                         searchable=True, retrievable=True, analyzer_name="en.microsoft"),
                         #SimpleField(name="inserteddate", type="Edm.String", searchable=True, retrievable=True,),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')]
+                    )
+                )])
         )
 
         try:
@@ -308,7 +311,7 @@ def performEarningCallCogSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAi
         r = searchClient.search(  
             search_text="",  
             filter="symbol eq '" + symbol + "' and quarter eq '" + quarter + "' and year eq '" + year + "'",
-            vectors=[Vector(value=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k=k, fields="contentVector")],  
+            vector_queries=[VectorizedQuery(vector=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k_nearest_neighbors=k, fields="contentVector")],
             select=returnFields,
             semantic_configuration_name="semanticConfig"
         )
@@ -338,11 +341,13 @@ def createPibSummaries(SearchService, SearchKey, indexName):
                                         searchable=True, retrievable=True, filterable=True, analyzer_name="en.microsoft"),
                         SimpleField(name="summary", type="Edm.String", retrievable=True),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="summary"), prioritized_content_fields=[SemanticField(field_name='summary')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="summary"), 
+                        prioritized_content_fields=[SemanticField(field_name='summary')]
+                    )
+                )])
         )
 
         try:
@@ -374,24 +379,31 @@ def createEarningCallVectorIndex(SearchService, SearchKey, indexName):
                                     searchable=True, vector_search_dimensions=1536, vector_search_configuration="vectorConfig"),
             ],
             vector_search = VectorSearch(
-                algorithm_configurations=[
-                    HnswVectorSearchAlgorithmConfiguration(
-                        name="vectorConfig",
-                        kind="hnsw",
-                        parameters={
-                            "m": 4,
-                            "efConstruction": 400,
-                            "efSearch": 500,
-                            "metric": "cosine"
-                        }
-                    )
-                ]
+                    algorithms=[
+                        HnswAlgorithmConfiguration(
+                            name="hnswConfig",
+                            parameters=HnswParameters(  
+                                m=4,  
+                                ef_construction=400,  
+                                ef_search=500,  
+                                metric=VectorSearchAlgorithmMetric.COSINE,  
+                            ),
+                        )
+                    ],  
+                    profiles=[  
+                        VectorSearchProfile(  
+                            name="vectorConfig",  
+                            algorithm_configuration_name="hnswConfig",  
+                        ),
+                    ],
             ),
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')]
+                    )
+                )])
         )
 
         try:
@@ -516,11 +528,13 @@ def createPressReleaseIndex(SearchService, SearchKey, indexName):
                                         searchable=True, retrievable=True, analyzer_name="en.microsoft"),
                         #SimpleField(name="inserteddate", type="Edm.String", searchable=True, retrievable=True,),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')]
+                    )
+                )])
         )
 
         try:
@@ -552,11 +566,13 @@ def createStockNewsIndex(SearchService, SearchKey, indexName):
                         SimpleField(name="url", type="Edm.String", retrievable=True),
                         #SimpleField(name="inserteddate", type="Edm.String", searchable=True, retrievable=True,),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')]
+                    )
+                )])
         )
 
         try:
@@ -635,12 +651,14 @@ def createSecFilingIndex(SearchService, SearchKey, indexName):
                         #             searchable=True, vector_search_dimensions=1536, vector_search_configuration="vectorConfig"),
                         SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
             ],
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))],
-                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')],
+                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')]
+                    )
+                )])
         )
 
         try:
@@ -712,24 +730,31 @@ def createSecFilingsVectorIndex(SearchService, SearchKey, indexName):
                                     searchable=True, vector_search_dimensions=1536, vector_search_configuration="vectorConfig"),
             ],
             vector_search = VectorSearch(
-                algorithm_configurations=[
-                    HnswVectorSearchAlgorithmConfiguration(
-                        name="vectorConfig",
-                        kind="hnsw",
-                        parameters={
-                            "m": 4,
-                            "efConstruction": 400,
-                            "efSearch": 500,
-                            "metric": "cosine"
-                        }
-                    )
-                ]
+                    algorithms=[
+                        HnswAlgorithmConfiguration(
+                            name="hnswConfig",
+                            parameters=HnswParameters(  
+                                m=4,  
+                                ef_construction=400,  
+                                ef_search=500,  
+                                metric=VectorSearchAlgorithmMetric.COSINE,  
+                            ),
+                        )
+                    ],  
+                    profiles=[  
+                        VectorSearchProfile(  
+                            name="vectorConfig",  
+                            algorithm_configuration_name="hnswConfig",  
+                        ),
+                    ],
             ),
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')]
+                    )
+                )])
         )
 
         try:
@@ -842,7 +867,7 @@ def performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiA
         r = searchClient.search(  
             search_text="",
             filter=filterData,
-            vectors=[Vector(value=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k=k, fields="contentVector")],  
+            vector_queries=[VectorizedQuery(vector=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k_nearest_neighbors=k, fields="contentVector")],
             select=returnFields,
             semantic_configuration_name="semanticConfig"
         )
@@ -861,10 +886,9 @@ def performLatestCallSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiK
         r = searchClient.search(  
             search_text=question,
             filter="symbol eq '" + symbol + "'",
-            vectors=[Vector(value=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k=k, fields="contentVector")],  
+            vector_queries=[VectorizedQuery(vector=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k_nearest_neighbors=k, fields="contentVector")],
             select=returnFields,
             query_type="semantic", 
-            query_language="en-us", 
             semantic_configuration_name='semanticConfig', 
             query_caption="extractive", 
             query_answer="extractive",
@@ -882,18 +906,11 @@ def performCogSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, Sea
         index_name=indexName,
         credential=AzureKeyCredential(SearchKey))
     try:
-        # r = searchClient.search(  
-        #     search_text="",  
-        #     vectors=[Vector(value=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k=k, fields="contentVector")],
-        #     select=returnFields,
-        #     semantic_configuration_name="semanticConfig"
-        # )
         r = searchClient.search(  
-            search_text=question,  
-            vectors=[Vector(value=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k=k, fields="contentVector")],  
+            search_text=question,
+            vector_queries=[VectorizedQuery(vector=generateEmbeddings(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, embeddingModelType, OpenAiEmbedding, question), k_nearest_neighbors=k, fields="contentVector")],
             select=returnFields,
             query_type="semantic", 
-            query_language="en-us", 
             semantic_configuration_name='semanticConfig', 
             query_caption="extractive", 
             query_answer="extractive",
@@ -978,25 +995,32 @@ def createSearchIndex(SearchService, SearchKey, indexName):
                         SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True),
             ],
             vector_search = VectorSearch(
-                algorithm_configurations=[
-                    HnswVectorSearchAlgorithmConfiguration(
-                        name="vectorConfig",
-                        kind="hnsw",
-                        parameters={
-                            "m": 4,
-                            "efConstruction": 400,
-                            "efSearch": 500,
-                            "metric": "cosine"
-                        }
-                    )
-                ]
+                    algorithms=[
+                        HnswAlgorithmConfiguration(
+                            name="hnswConfig",
+                            parameters=HnswParameters(  
+                                m=4,  
+                                ef_construction=400,  
+                                ef_search=500,  
+                                metric=VectorSearchAlgorithmMetric.COSINE,  
+                            ),
+                        )
+                    ],  
+                    profiles=[  
+                        VectorSearchProfile(  
+                            name="vectorConfig",  
+                            algorithm_configuration_name="hnswConfig",  
+                        ),
+                    ],
             ),
-            semantic_settings=SemanticSettings(
-                configurations=[SemanticConfiguration(
-                    name='semanticConfig',
-                    prioritized_fields=PrioritizedFields(
-                        title_field=SemanticField(field_name="content"), prioritized_content_fields=[SemanticField(field_name='content')]))],
-                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')])
+            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+                    name="semanticConfig",
+                    prioritized_fields=SemanticPrioritizedFields(
+                        title_field=SemanticField(field_name="content"), 
+                        prioritized_content_fields=[SemanticField(field_name='content')],
+                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')]
+                    )
+                )])
         )
 
         try:

@@ -4,6 +4,7 @@ This sample demonstrates building a pitch book from public, private and paid dat
 
 ## Updates
 
+* 4/12/2024 - Upgrade the packages (langchain, azure-search, pinecone, redis, etc) to the latest versions
 * 2/7/2024 - Add capability to suggest questions for Earning Calls & SEC Filings
 * 1/28/2024 - Additional Details on all Cognitive search Index used
   * pibec - Index to store the earning calls raw content
